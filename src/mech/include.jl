@@ -21,6 +21,8 @@ include("mat/dp-solid.jl")
 include("mat/vm-solid.jl")
 include("mat/mazars-solid.jl")
 include("mat/sc-solid.jl")
+#New orthotropic model
+include("mat/ortho-solid.jl")
 
 # Models for truss elements
 include("mat/elastic-rod.jl")
