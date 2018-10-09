@@ -21,6 +21,7 @@ include("mat/dp-solid.jl")
 include("mat/vm-solid.jl")
 include("mat/mazars-solid.jl")
 include("mat/sc-solid.jl")
+include("mat/ortho-solid.jl")
 
 # Models for truss elements
 include("mat/elastic-rod.jl")
@@ -37,6 +38,10 @@ include("mat/mc-joint.jl")
 include("mat/elastic-joint1d.jl")
 include("mat/ceb-joint1d.jl")
 
+# Stress-update integrator
+include("mat/integrator.jl")
+
+# Solvers
 include("solver.jl")
 include("dyn-solver.jl")
 export solve!

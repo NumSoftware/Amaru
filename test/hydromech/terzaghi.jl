@@ -109,7 +109,7 @@ if Amaru.Debug.makeplots
     # numerical curves
     book  = logger[1].book
     Uwini = book.tables[2][:uw]       # hydrostatic porepressure
-    Z     = 1 - book.tables[2][:z]/hd # normalized depth
+    Z     = 1 .- book.tables[2][:z]/hd # normalized depth
     for Uw in Uw_vals
         dUw = (Uw - Uwini)/load       # excess of porepressure
         plot(dUw, Z, "-o")

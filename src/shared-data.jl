@@ -7,9 +7,10 @@ mutable struct SharedAnalysisData
     t::Float64             # Time in time dependent analysis
     function SharedAnalysisData()
         this = new()
-        ndim = 3
-        model_type = :general
-        t = 0.0
+        this.ndim = 3
+        this.model_type = :general
+        this.t = 0.0
+        this.thickness = 1.0
         return this
     end
 end
