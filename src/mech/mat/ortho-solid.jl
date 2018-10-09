@@ -18,7 +18,7 @@ mutable struct OrthotropicIpState<:IpState
     fmax::Float64
 
     unloading::Bool  # flag for loading/unloading conditions
-    crushed::Bool    # flag for crashing in compression
+    crushed::Bool    # flag for crushing in compression
     nfails::Int64    # number of failures
     #active_fails::Array{Int64,1} # indices for active failure planes
     active_fails::Array{Bool,1} # active_fails = [ true, false, true ]
@@ -101,7 +101,8 @@ end
 function loading_func(mat::Orthotropic, σ::Tensor2)
     j2d = J2D(σ)
     j1  = J1(σ)
-    return √j2d + mat.α*j1
+    return √j2d
+    #return √j2d + mat.α*j1
 end
 
 
@@ -247,7 +248,7 @@ function calcD(mat::Orthotropic, ipd::OrthotropicIpState)
 
 
     if !ipd.crushed && nactive_fails==0 # no fails
-        println("Não está cruched e não tem planos de falha")
+        println("Não está crushed e não tem planos de falha")
         if ipd.unloading # elastic regime
             # isotrophic
             D = calcDe(mat.E0, mat.ν, ipd.shared_data.model_type)
@@ -304,11 +305,12 @@ function calcD(mat::Orthotropic, ipd::OrthotropicIpState)
         end
 
     elseif ipd.crushed
-        println("Está cruched")
+        println("Está crushed")
         println("D=ηn")
         D = eye(6)*mat.ηn
         return D
     else # nactive_fails>0
+        println("Tem planos de falha")
         if ipd.nfixed_planes==1
             println("1 plano de falha definido")
             σp, V = eigen_with_fixed_dir(ipd.σ, ipd.V1) # V1 should be the first column of V
@@ -401,7 +403,7 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
     nactive_fails = count(ipd.active_fails)
 
     if !ipd.crushed && nactive_fails==0 # no fails
-        println("Não está cruched e não tem planos de falha")
+        println("Não está crushed e não tem planos de falha")
         σp, V = eigen(ipd.σ)
         R  = zeros(6,6)
         tensor_rot!(V, R)
@@ -465,24 +467,37 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
         end
         Δσ = D*Δε
     elseif ipd.crushed
+        println("crushed")
+        @show ipd.nfixed_planes
         if ipd.nfixed_planes==0
             σp, V = eigen(ipd.σ)
         elseif ipd.nfixed_planes==1
             σp, V = eigen_with_fixed_dir(ipd.σ, ipd.V1) # V1 should be the first column of V
         else # ipd.nfixed_planes == 3
             V = [ ipd.V1 ipd.V2 ipd.V3 ]
+            R = zeros(6,6)
+            tensor_rot!(V, R)
+            σp = R*ipd.σ # stresses associated with V1, V2 and V3
+            σp = σp[1:3]
         end
+
+        p  = sortperm(σp, rev=true)
+        σp = σp[p] # ordered stresses
+        V  = V[:,p]
 
         R  = zeros(6,6)
         tensor_rot!(V, R)
         εp =  R*ipd.ε
         Δεp = R*Δε # incremental strain
         if minimum((εp+Δεp)[1:3]) < mat.εu # stress release
+            println("Stress release")
             Δσ = -ipd.σ
         else
-            if ipd.unloading
+            if Δεp[3]>0 # unloading (different than the original paper)
+                println("unloading")
                 D = calcDe(mat.E0, mat.ν, ipd.shared_data.model_type)
             else
+                println("loading")
                 Et = ( sigma(mat, εp[3]+Δεp[3]) - sigma(mat, εp[3]) ) / Δεp[3]
                 D  = calcDe(Et, mat.ν, ipd.shared_data.model_type)
             end
@@ -490,6 +505,7 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
         end
 
     else # nactive_fails>0
+        println("Tem falhas ", ipd.nfixed_planes)
         if ipd.nfixed_planes==1
             σp, V = eigen_with_fixed_dir(ipd.σ, ipd.V1) # V1 should be the first column of V
         else # ipd.nfixed_planes == 3
@@ -556,6 +572,10 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
     ipd.ε += Δε
     ipd.σ += Δσ
 
+    @show ipd.ε
+    @show ipd.σ
+
+
     # Check for new failure planes
     if ipd.nfixed_planes==0
         σp, V = eigen(ipd.σ)
@@ -578,6 +598,7 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
                 ipd.V3 = normalize(cross(ipd.V1, ipd.V2))
             end
             if ipd.nfixed_planes<3
+                println("  Novo plano de falha")
                 ipd.nfixed_planes += 1
             end
         end
