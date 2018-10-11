@@ -231,7 +231,8 @@ function orthotropic_moduli(Ep1::Float64, Ep2::Float64, Ep3::Float64, σp::Array
     E12 = ( abs(σp[1])*Ep1 + abs(σp[2])*Ep2 ) / ( abs(σp[1]) + abs(σp[2]) )
     E23 = ( abs(σp[2])*Ep2 + abs(σp[3])*Ep3 ) / ( abs(σp[2]) + abs(σp[3]) )
     E13 = ( abs(σp[1])*Ep1 + abs(σp[3])*Ep3 ) / ( abs(σp[1]) + abs(σp[3]) )
-    #σp[1] + σp[2] == 0.0 && (E12=Ep1)
+    @show σp
+    σp[1] + σp[2] == 0.0 && (E12=Ep1)
     #σp[2] + σp[3] == 0.0 && (E23=Ep2)
     #σp[1] + σp[3] == 0.0 && (E13=Ep3)
     return E12, E23, E13
@@ -395,8 +396,8 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
 
     #f = loading_func(mat, ipd.σ)
     f = loading_func(mat, σtr)
-    @show f
-    @show ipd.fmax
+    #@show f
+    #@show ipd.fmax
     ipd.unloading = (f<ipd.fmax)
     ipd.fmax = max(f, ipd.fmax)
 
@@ -450,6 +451,10 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
             else # σp[3]<κ*fcmax high compression
                 println("Alta compressão")
                 E12, E23, E13 = orthotropic_moduli(Ep1, Ep2, Ep3, σp)
+                @show Ep1, Ep2, Ep3
+                @show E12, E23, E13
+                @show σp[1], σp[2]
+
 
                 # Orthotropic D matrix
                 # Notice that Amaru considers a general shear stress components (e.g. εxy)
@@ -572,8 +577,8 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
     ipd.ε += Δε
     ipd.σ += Δσ
 
-    @show ipd.ε
-    @show ipd.σ
+    #@show ipd.ε
+    #@show ipd.σ
 
 
     # Check for new failure planes
