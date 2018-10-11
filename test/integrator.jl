@@ -6,14 +6,15 @@ int = MechIntegrator(mat)
 
 nu = 0.2
 #Δε = [ 0.0025*nu, 0.0025*nu, -0.0025, 0, 0, 0 ]
-Δε = [ 0.0004, 0.0004, -0.0033, 0, 0, 0 ]*0.3
-stress_update(int, Δε, nincs=40)
+#Δε = [ 0.0004, 0.0004, -0.0033, 0, 0, 0 ]*0.95
+#stress_update(int, Δε, nincs=20)
 
-Δε = [ 0.0004, 0.0004, -0.0033, 0, 0, 0 ]*-0.10
-stress_update(int, Δε, nincs=21)
+Δε = [ 0.0004, 0.0004, -0.0033, 0, 0, 0 ]*-0.80
+stress_update(int, Δε, nincs=50)
 
-#Δε = [ 0.0004, 0.0004, -0.0033, 0, 0, 0 ]*0.15
-#stress_update(int, Δε, nincs=21)
+
+#Δε = [ 0.0004, 0.0004, -0.0033, 0, 0, 0 ]*0.80
+#stress_update(int, Δε, nincs=20)
 
 using PyPlot
 t = int.table
