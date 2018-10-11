@@ -448,6 +448,10 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
                 println("Alta compressão")
                 println("D(ortho)")
                 E12, E23, E13 = orthotropic_moduli(Ep1, Ep2, Ep3, σp)
+                @show Ep1, Ep2, Ep3
+                @show E12, E23, E13
+                @show σp[1], σp[2]
+
 
                 # Orthotropic D matrix
                 # Notice that Amaru considers a general shear stress components (e.g. εxy)
