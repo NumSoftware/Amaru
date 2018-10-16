@@ -188,7 +188,7 @@ function eigen_with_fixed_dir(σ::Tensor2, X::Array{Float64,1})
 
     # new temporary tensor
     σt = R*σ
-    σx = σt[1]
+    σx = σt[1] # first "eigenvalue"
 
     lt, Vt = eigen( [ σt[2] σt[4]; σt[4] σ[3] ]  )
 
@@ -403,6 +403,9 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
 
     nactive_fails = count(ipd.active_fails)
 
+    @show ipd.active_fails
+    @show nactive_fails
+
     if !ipd.crushed && nactive_fails==0 # no fails
         println("Não está crushed e não tem planos de falha")
         σp, V = eigen(ipd.σ)
@@ -431,9 +434,10 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
             Ep1 = ( sigma(mat, εp[1]+Δεp[1]) - sigma(mat, εp[1]) ) / Δεp[1]
             Ep2 = ( sigma(mat, εp[2]+Δεp[2]) - sigma(mat, εp[2]) ) / Δεp[2]
             Ep3 = ( sigma(mat, εp[3]+Δεp[3]) - sigma(mat, εp[3]) ) / Δεp[3]
-            Δεp[1] == 0 && (Ep1 == uniaxial_young_modulus(mat, εp[1], γ1))
-            Δεp[2] == 0 && (Ep2 == uniaxial_young_modulus(mat, εp[2], γ1))
-            Δεp[3] == 0 && (Ep3 == uniaxial_young_modulus(mat, εp[3], γ1))
+            Δεp[1] == 0 && (Ep1 = uniaxial_young_modulus(mat, εp[1], γ1))
+            Δεp[2] == 0 && (Ep2 = uniaxial_young_modulus(mat, εp[2], γ1))
+            Δεp[3] == 0 && (Ep3 = uniaxial_young_modulus(mat, εp[3], γ1))
+
 
             κ = 0.4
             if σp[3] >= κ*fcm # σc'  low compression
@@ -445,12 +449,12 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
                     Et = mat.E0
                 end
                 D = calcDe(Et, mat.ν, ipd.shared_data.model_type)
-                @show σp
-                @show εp
-                @show Δεp
-                @show Ep1, Ep2, Ep3
-                @show Et
-                @show D
+                #@show σp
+                #@show εp
+                #@show Δεp
+                #@show Ep1, Ep2, Ep3
+                #@show Et
+                #@show D
 
             else # σp[3]<κ*fcmax high compression
                 println("Alta compressão")
@@ -476,6 +480,7 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
 
         end
         Δσ = D*Δε
+        @show Δσ
     elseif ipd.crushed #Material failed already in COMPRESSION
         println("Crushed")
         @show ipd.nfixed_planes
@@ -593,17 +598,18 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
     ipd.σ += Δσ
 
     #@show ipd.ε
-    #@show ipd.σ
+    @show ipd.σ
 
 
     # Check for new failure planes
     println("--------------------")
     println("Check for new failure planes")
+
     if ipd.nfixed_planes==0
         println(ipd.nfixed_planes, "  plano de falha=0")
         σp, V = eigen(ipd.σ)
-        @show σp
-        @show V
+        #@show σp
+        #@show V
     elseif ipd.nfixed_planes==1
         println(ipd.nfixed_planes, "  plano de falha=1")
         σp, V = eigen_with_fixed_dir(ipd.σ, ipd.V1) # V1 should be the first column of V
@@ -611,25 +617,28 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
         println(ipd.nfixed_planes, "  plano de falha=2 ou 3")
         V = [ ipd.V1 ipd.V2 ipd.V3 ]
         R  = zeros(6,6)
+        @show V
         tensor_rot!(V, R)
         σp = R*ipd.σ # stresses associated with V1, V2 and V3
+        #@show R
+        #@show ipd.σp
+        #@show σp
     end
     σp = R*ipd.σ # stresses associated with V1, V2 and V3
 
     for i=1:3
         if σp[i]>mat.ft # new fixed plane
-            @show σp
-            @show mat.ft
             if ipd.nfixed_planes==0
                 ipd.V1 = V[:,i]
-            elseif ipd.nfixed_planes==1
-                ipd.V2 = V[:,i]
-                ipd.V3 = normalize(cross(ipd.V1, ipd.V2))
-            end
-            if ipd.nfixed_planes<3
-                println("Novo plano de falha")
                 ipd.nfixed_planes += 1
-                println(ipd.nfixed_planes, " planos agora")
+            elseif ipd.nfixed_planes==1
+                if norm(V[:,i] - ipd.V1)<0.001 # V[:,i] == V1 plano já existe
+                    continue
+                else
+                    ipd.V2 = V[:,i]
+                    ipd.V3 = normalize(cross(ipd.V1, ipd.V2))
+                    ipd.nfixed_planes += 2
+                end
             end
         end
     end
@@ -639,7 +648,7 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
     if ipd.nfixed_planes>0
         ipd.active_fails = [ false, false, false ]
         for i=1:ipd.nfixed_planes
-            if εp[i]<0 # in traction FIXME: complete this (section 3.3)
+            if εp[i]>0 # in traction FIXME: complete this (section 3.3)
                 ipd.active_fails[i] = true
                 σp[i] = 0.0
             end
