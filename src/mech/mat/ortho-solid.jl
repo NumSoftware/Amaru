@@ -115,8 +115,8 @@ function sigma(mat::Orthotropic, εp::Float64)
     Es = mat.fc/mat.εc
     p  = mat.εu/mat.εc
     A = ( E0/Eu + (p^3-2*p^2)*E0/Es - (2*p^3-3*p^2+1) ) / (p^3-2*p^2+p)
-    B = 2*E0/Es - 3 - 2*A
-    C = 2 - E0/Es + A
+    B = ( 2*E0/Es - 3 ) - 2*A
+    C = ( 2 - E0/Es ) + A
     ξ = εp/mat.εc
     return (E0/Es*ξ) / ( 1 + A*ξ + B*ξ^2 + C*ξ^3) * mat.fc
 end
@@ -431,7 +431,9 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
             Ep1 = ( sigma(mat, εp[1]+Δεp[1]) - sigma(mat, εp[1]) ) / Δεp[1]
             Ep2 = ( sigma(mat, εp[2]+Δεp[2]) - sigma(mat, εp[2]) ) / Δεp[2]
             Ep3 = ( sigma(mat, εp[3]+Δεp[3]) - sigma(mat, εp[3]) ) / Δεp[3]
-
+            Δεp[1] == 0 && (Ep1 == uniaxial_young_modulus(mat, εp[1], γ1))
+            Δεp[2] == 0 && (Ep2 == uniaxial_young_modulus(mat, εp[2], γ1))
+            Δεp[3] == 0 && (Ep3 == uniaxial_young_modulus(mat, εp[3], γ1))
 
             κ = 0.4
             if σp[3] >= κ*fcm # σc'  low compression
@@ -443,14 +445,20 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
                     Et = mat.E0
                 end
                 D = calcDe(Et, mat.ν, ipd.shared_data.model_type)
+                @show σp
+                @show εp
+                @show Δεp
+                @show Ep1, Ep2, Ep3
+                @show Et
+                @show D
 
             else # σp[3]<κ*fcmax high compression
                 println("Alta compressão")
                 println("D(ortho)")
                 E12, E23, E13 = orthotropic_moduli(Ep1, Ep2, Ep3, σp)
-                @show Ep1, Ep2, Ep3
-                @show E12, E23, E13
-                @show σp[1], σp[2]
+                #@show Ep1, Ep2, Ep3
+                #@show E12, E23, E13
+                #@show σp[1], σp[2]
 
 
                 # Orthotropic D matrix
@@ -471,6 +479,7 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
     elseif ipd.crushed #Material failed already in COMPRESSION
         println("Crushed")
         @show ipd.nfixed_planes
+        #@show σp
         if ipd.nfixed_planes==0
             σp, V = eigen(ipd.σ)
         elseif ipd.nfixed_planes==1
@@ -482,6 +491,7 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
             σp = R*ipd.σ # stresses associated with V1, V2 and V3
             σp = σp[1:3]
         end
+        @show σp
 
         p  = sortperm(σp, rev=true)
         σp = σp[p] # ordered stresses
@@ -592,6 +602,8 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
     if ipd.nfixed_planes==0
         println(ipd.nfixed_planes, "  plano de falha=0")
         σp, V = eigen(ipd.σ)
+        @show σp
+        @show V
     elseif ipd.nfixed_planes==1
         println(ipd.nfixed_planes, "  plano de falha=1")
         σp, V = eigen_with_fixed_dir(ipd.σ, ipd.V1) # V1 should be the first column of V
@@ -606,6 +618,8 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
 
     for i=1:3
         if σp[i]>mat.ft # new fixed plane
+            @show σp
+            @show mat.ft
             if ipd.nfixed_planes==0
                 ipd.V1 = V[:,i]
             elseif ipd.nfixed_planes==1
