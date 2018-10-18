@@ -171,7 +171,7 @@ function eigen_with_fixed_dir(σ::Tensor2, X::Array{Float64,1})
     # Finds two eigenvectors normal do X. Vector X is returned as the first direction
     #
     # σ: Stress tensor
-    # Z: Fixed direction
+    # X: Fixed direction
 
     # find an arbitrary system aligned with Z
     Q = [1., 0 , 0] # auxiliary vector
@@ -231,7 +231,6 @@ function orthotropic_moduli(Ep1::Float64, Ep2::Float64, Ep3::Float64, σp::Array
     E12 = ( abs(σp[1])*Ep1 + abs(σp[2])*Ep2 ) / ( abs(σp[1]) + abs(σp[2]) )
     E23 = ( abs(σp[2])*Ep2 + abs(σp[3])*Ep3 ) / ( abs(σp[2]) + abs(σp[3]) )
     E13 = ( abs(σp[1])*Ep1 + abs(σp[3])*Ep3 ) / ( abs(σp[1]) + abs(σp[3]) )
-    @show σp
     σp[1] + σp[2] == 0.0 && (E12=Ep1)
     σp[2] + σp[3] == 0.0 && (E23=Ep2)
     σp[1] + σp[3] == 0.0 && (E13=Ep3)
@@ -480,7 +479,7 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
 
         end
         Δσ = D*Δε
-        @show Δσ
+        #@show Δσ
     elseif ipd.crushed #Material failed already in COMPRESSION
         println("Crushed")
         @show ipd.nfixed_planes
@@ -598,26 +597,31 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
     ipd.σ += Δσ
 
     #@show ipd.ε
-    @show ipd.σ
+    #@show ipd.σ
 
 
     # Check for new failure planes
     println("--------------------")
-    println("Check for new failure planes")
+    println("Calculate a new σp and V")
+    @show ipd.nfixed_planes
 
     if ipd.nfixed_planes==0
-        println(ipd.nfixed_planes, "  plano de falha=0")
+        println("Planos de falha = '0'")
         σp, V = eigen(ipd.σ)
         #@show σp
         #@show V
     elseif ipd.nfixed_planes==1
-        println(ipd.nfixed_planes, "  plano de falha=1")
+        println("Planos de falha = '1'")
         σp, V = eigen_with_fixed_dir(ipd.σ, ipd.V1) # V1 should be the first column of V
+        @show V
+        @show dot(V[1], V[2])
+        @show dot(V[2], V[3])
+        @show dot(V[1], V[3])
     else # ipd.nfixed_planes == 3
-        println(ipd.nfixed_planes, "  plano de falha=2 ou 3")
+        println("Planos de falha = '2 ou 3'")
         V = [ ipd.V1 ipd.V2 ipd.V3 ]
         R  = zeros(6,6)
-        @show V
+        #@show V
         tensor_rot!(V, R)
         σp = R*ipd.σ # stresses associated with V1, V2 and V3
         #@show R
@@ -625,10 +629,15 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
         #@show σp
     end
     σp = R*ipd.σ # stresses associated with V1, V2 and V3
+    @show σp
 
+    println("--------------------")
+    println("Check for new failure planes")
+    #@show ipd.nfixed_planes
     for i=1:3
         if σp[i]>mat.ft # new fixed plane
             if ipd.nfixed_planes==0
+                println("agora tem 1 plano fixo")
                 ipd.V1 = V[:,i]
                 ipd.nfixed_planes += 1
             elseif ipd.nfixed_planes==1
@@ -638,6 +647,7 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
                     ipd.V2 = V[:,i]
                     ipd.V3 = normalize(cross(ipd.V1, ipd.V2))
                     ipd.nfixed_planes += 2
+                    println("agora tem 3 plano fixo")
                 end
             end
         end
