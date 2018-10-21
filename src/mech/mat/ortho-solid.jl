@@ -225,6 +225,23 @@ function fixD(mat, D::Array{Float64,2}, active_fails::Array{Int,1})
     return D
 end
 
+function principal_isotropic_moduli(mat::Orthotropic, εp::Array{Float64,1}, γ1::Float64)
+    Ep1 = uniaxial_young_modulus(mat, εp[1], γ1)
+    Ep2 = uniaxial_young_modulus(mat, εp[2], γ1)
+    Ep3 = uniaxial_young_modulus(mat, εp[3], γ1)
+    return Ep1, Ep2, Ep3
+end
+
+function principal_orthotropic_moduli(mat::Orthotropic, εp::Array{Float64,1}, Δεp::Array{Float64,1}, γ1::Float64)
+    Ep1 = ( sigma(mat, εp[1]+Δεp[1]) - sigma(mat, εp[1]) ) / Δεp[1]
+    Ep2 = ( sigma(mat, εp[2]+Δεp[2]) - sigma(mat, εp[2]) ) / Δεp[2]
+    Ep3 = ( sigma(mat, εp[3]+Δεp[3]) - sigma(mat, εp[3]) ) / Δεp[3]
+    Δεp[1] == 0 && (Ep1 = uniaxial_young_modulus(mat, εp[1], γ1))
+    Δεp[2] == 0 && (Ep2 = uniaxial_young_modulus(mat, εp[2], γ1))
+    Δεp[3] == 0 && (Ep3 = uniaxial_young_modulus(mat, εp[3], γ1))
+    return Ep1, Ep2, Ep3
+end
+
 function orthotropic_moduli(Ep1::Float64, Ep2::Float64, Ep3::Float64, σp::Array{Float64,1})
     E12 = ( abs(σp[1])*Ep1 + abs(σp[2])*Ep2 ) / ( abs(σp[1]) + abs(σp[2]) )
     E23 = ( abs(σp[2])*Ep2 + abs(σp[3])*Ep3 ) / ( abs(σp[2]) + abs(σp[3]) )
@@ -269,9 +286,10 @@ function calcD(mat::Orthotropic, ipd::OrthotropicIpState)
             γ1  = gamma1(mat, σp[1], σp[2])
             fcm = γ1*mat.fc
 
-            Ep1 = uniaxial_young_modulus(mat, εp[1], γ1)
-            Ep2 = uniaxial_young_modulus(mat, εp[2], γ1)
-            Ep3 = uniaxial_young_modulus(mat, εp[3], γ1)
+            Ep1, Ep2, Ep3 = principal_isotropic_moduli(mat, εp, γ1)
+            #Ep1 = uniaxial_young_modulus(mat, εp[1], γ1)
+            #Ep2 = uniaxial_young_modulus(mat, εp[2], γ1)
+            #Ep3 = uniaxial_young_modulus(mat, εp[3], γ1)
 
             κ = 0.4
             if σp[3] >= κ*fcm # σc'  low compression
@@ -345,9 +363,10 @@ function calcD(mat::Orthotropic, ipd::OrthotropicIpState)
             γ1  = gamma1(mat, σp[1], σp[2])
             fcm = γ1*mat.fc
 
-            Ep1 = uniaxial_young_modulus(mat, εp[1], γ1)
-            Ep2 = uniaxial_young_modulus(mat, εp[2], γ1)
-            Ep3 = uniaxial_young_modulus(mat, εp[3], γ1)
+            Ep1, Ep2, Ep3 = principal_isotropic_moduli(mat, εp, γ1)
+            #Ep1 = uniaxial_young_modulus(mat, εp[1], γ1)
+            #Ep2 = uniaxial_young_modulus(mat, εp[2], γ1)
+            #Ep3 = uniaxial_young_modulus(mat, εp[3], γ1)
 
             κ = 0.4
 
@@ -435,13 +454,7 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
 
             # Use secant Young's moduli
             Δεp = R*Δε # incremental strain
-            Ep1 = ( sigma(mat, εp[1]+Δεp[1]) - sigma(mat, εp[1]) ) / Δεp[1]
-            Ep2 = ( sigma(mat, εp[2]+Δεp[2]) - sigma(mat, εp[2]) ) / Δεp[2]
-            Ep3 = ( sigma(mat, εp[3]+Δεp[3]) - sigma(mat, εp[3]) ) / Δεp[3]
-            Δεp[1] == 0 && (Ep1 = uniaxial_young_modulus(mat, εp[1], γ1))
-            Δεp[2] == 0 && (Ep2 = uniaxial_young_modulus(mat, εp[2], γ1))
-            Δεp[3] == 0 && (Ep3 = uniaxial_young_modulus(mat, εp[3], γ1))
-
+            Ep1, Ep2, Ep3 = principal_orthotropic_moduli(mat, εp, Δεp, γ1)
 
             κ = 0.4
             if σp[3] >= κ*fcm # σc'  low compression
@@ -485,16 +498,17 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
         end
         Δσ = D*Δε
         #@show Δσ
-    elseif ipd.crushed #Material failed already in COMPRESSION
+    elseif ipd.crushed && Δε[3] < 0.0 ###Material failed already in COMPRESSION###
         println("Crushed")
         @show nfplanes
         #@show σp
         if nfplanes==0
             σp, V = eigen(ipd.σ)
         elseif nfplanes==1
-            σp, V = eigen_with_fixed_dir(ipd.σ, ipd.V1) # V1 should be the first column of V
+            σp, V = eigen_with_fixed_dir(ipd.σ, ipd.fplanes[1].V) # V1 should be the first column of V
         else # nfplanes == 3
-            V = [ ipd.V1 ipd.V2 ipd.V3 ]
+            V = [ ipd.fplanes[1].V ipd.fplanes[2].V ipd.fplanes[3].V ]
+            #V = [ ipd.V1 ipd.V2 ipd.V3 ]
             R = zeros(6,6)
             tensor_rot!(V, R)
             σp = R*ipd.σ # stresses associated with V1, V2 and V3
@@ -514,24 +528,38 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
             println("Stress release")
             Δσ = -ipd.σ
         else
-            if Δεp[3]>0 # unloading (different than the original paper)
+            if Δεp[3] > 0.0 # unloading (different than the original paper)
                 println("unloading")
                 D = calcDe(mat.E0, mat.ν, ipd.shared_data.model_type)
             else
                 println("loading")
-                Et = ( sigma(mat, εp[3]+Δεp[3]) - sigma(mat, εp[3]) ) / Δεp[3]
-                D  = calcDe(Et, mat.ν, ipd.shared_data.model_type)
+                @show f
+                @show ipd.fmax
+                if ipd.unloading && Δεp[3] > 0.0
+                    #Et = E
+                    D = calcDe(mat.E0, mat.ν, ipd.shared_data.model_type)
+                    @show 1000
+                else
+                    Et = ( sigma(mat, εp[3]+Δεp[3]) - sigma(mat, εp[3]) ) / Δεp[3]
+                    D  = calcDe(Et, mat.ν, ipd.shared_data.model_type)
+                    @show 2000
+                end
+                #D  = calcDe(Et, mat.ν, ipd.shared_data.model_type)
             end
             Δσ = D*Δε
         end
 
     else ### Material failed already in TENSION ###
-        println("Tem falhas em Tracao")
-        if nfplanes==1
-            println(nfplanes, "  plano de falha definido")
+        println("Tracao")
+        @show nfplanes
+        if nfplanes==0
+            println("Planos de falha = 0")
+            σp, V = eigen(ipd.σ)
+        elseif nfplanes==1
+            println("Plano de falha definido = 1")
             σp, V = eigen_with_fixed_dir(ipd.σ, ipd.fplanes[1].V ) # V1 should be the first column of V
         else # nfplanes == 3
-            println(nfplanes, "  planos de falha definidos")
+            println("Planos de falha definidos = 2 o 3")
             V = [ ipd.fplanes[1].V ipd.fplanes[2].V ipd.fplanes[3].V ]
             R = zeros(6,6)
             tensor_rot!(V, R)
@@ -566,12 +594,13 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
 
             # Use secant Young's moduli
             Δεp = R*Δε # incremental strain
-            Ep1 = ( sigma(mat, εp[1]+Δεp[1]) - sigma(mat, εp[1]) ) / Δεp[1]
-            Ep2 = ( sigma(mat, εp[2]+Δεp[2]) - sigma(mat, εp[2]) ) / Δεp[2]
-            Ep3 = ( sigma(mat, εp[3]+Δεp[3]) - sigma(mat, εp[3]) ) / Δεp[3]
-            Δεp[1] == 0 && (Ep1 = uniaxial_young_modulus(mat, εp[1], γ1))
-            Δεp[2] == 0 && (Ep2 = uniaxial_young_modulus(mat, εp[2], γ1))
-            Δεp[3] == 0 && (Ep3 = uniaxial_young_modulus(mat, εp[3], γ1))
+            Ep1, Ep2, Ep3 = principal_orthotropic_moduli(mat, εp, Δεp, γ1)
+            #Ep1 = ( sigma(mat, εp[1]+Δεp[1]) - sigma(mat, εp[1]) ) / Δεp[1]
+            #Ep2 = ( sigma(mat, εp[2]+Δεp[2]) - sigma(mat, εp[2]) ) / Δεp[2]
+            #Ep3 = ( sigma(mat, εp[3]+Δεp[3]) - sigma(mat, εp[3]) ) / Δεp[3]
+            #Δεp[1] == 0 && (Ep1 = uniaxial_young_modulus(mat, εp[1], γ1))
+            #Δεp[2] == 0 && (Ep2 = uniaxial_young_modulus(mat, εp[2], γ1))
+            #Δεp[3] == 0 && (Ep3 = uniaxial_young_modulus(mat, εp[3], γ1))
 
             κ = 0.4
 
@@ -596,8 +625,14 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
         end
 
         # Fix D
-        active_fails = [ find_dir(V, p.V) for p in ipd.fplanes ]
-        fixD(mat, Dp, active_fails)
+        if nfplanes == 0 # Dp não se modifica
+            continue
+        else
+            active_fails = [ find_dir(V, p.V) for p in ipd.fplanes ]
+            fixD(mat, Dp, active_fails)
+        end
+        #active_fails = [ find_dir(V, p.V) for p in ipd.fplanes ]
+        #fixD(mat, Dp, active_fails)
         D = R'*Dp*R # rotates tensor Dp to xyz system
         Δσ = D*Δε
     end
