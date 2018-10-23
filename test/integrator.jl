@@ -15,7 +15,7 @@ stress_update(int, Δε, nincs=10)
 Δε = [ 0.0000, 0.0000, -0.0033, 0, 0, 0 ]*-0.225
 stress_update(int, Δε, nincs=10)
 
-Δε = [ 0.0000, 0.0000, -0.0033, 0, 0, 0 ]*0.80
+Δε = [ 0.0000, 0.0000, -0.0033, 0, 0, 0 ]*0.90
 stress_update(int, Δε, nincs=10)
 
 using PyPlot

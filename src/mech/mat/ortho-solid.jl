@@ -409,6 +409,7 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
 
     E = mat.E0
     ν = mat.ν
+    ep = 0.0
 
     #f = loading_func(mat, ipd.σ)
     f = loading_func(mat, σtr)
@@ -498,6 +499,7 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
         end
         Δσ = D*Δε
         #@show Δσ
+        @show εp[3]
     elseif ipd.crushed && Δε[3] < 0.0 ###Material failed already in COMPRESSION###
         println("Crushed")
         @show nfplanes
@@ -516,6 +518,7 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
         end
         @show σp
 
+
         p  = sortperm(σp, rev=true)
         σp = σp[p] # ordered stresses
         V  = V[:,p]
@@ -523,7 +526,24 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
         R  = zeros(6,6)
         tensor_rot!(V, R)
         εp =  R*ipd.ε
+        @show εp
         Δεp = R*Δε # incremental strain
+
+        #eep = 0.0
+
+
+        @show εp[3]
+
+        @show ep
+        #ep_max = 0.0
+        #if εp[3] < ep
+        #    ep_max = εp[3]
+        #else
+        #    ep_max = ep
+        #end
+        #@show ep_max
+
+
         if minimum((εp+Δεp)[1:3]) < mat.εu # stress release
             println("Stress release")
             Δσ = -ipd.σ
@@ -535,9 +555,16 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
                 println("loading")
                 @show f
                 @show ipd.fmax
-                if ipd.unloading && Δεp[3] > 0.0
+                @show Δεp
+                @show εp
+                #if ipd.unloading && maximum(εp) < 
+                #if ipd.unloading && εp[3] > 0.0
+                #if ipd.unloading
+                #if f < ipd.fmax && εp[3] > ep
+                if f < ipd.fmax
                     #Et = E
                     D = calcDe(mat.E0, mat.ν, ipd.shared_data.model_type)
+                    println("E elástico")
                     @show 1000
                 else
                     Et = ( sigma(mat, εp[3]+Δεp[3]) - sigma(mat, εp[3]) ) / Δεp[3]
@@ -586,6 +613,8 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
                              0.0    0.0     0.0    (1-ν)  0.0    0.0
                              0.0    0.0     0.0    0.0    (1-ν)  0.0  
                              0.0    0.0     0.0    0.0    0.0    (1-ν) ]
+        @show E
+        @show Dp
         else # loading
             println("Carregando")
 
@@ -625,11 +654,13 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
         end
 
         # Fix D
-        if nfplanes == 0 # Dp não se modifica
-            continue
-        else
-            active_fails = [ find_dir(V, p.V) for p in ipd.fplanes ]
-            fixD(mat, Dp, active_fails)
+        for i in nfplanes
+            if nfplanes == 0 # Dp não se modifica
+                continue
+            else
+                active_fails = [ find_dir(V, p.V) for p in ipd.fplanes ]
+                fixD(mat, Dp, active_fails)
+            end
         end
         #active_fails = [ find_dir(V, p.V) for p in ipd.fplanes ]
         #fixD(mat, Dp, active_fails)
@@ -643,8 +674,9 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
     #@show ipd.ε
     #@show ipd.σ
     #@show Δε
+    @show εp[3]
+    ep = εp[3]
     #@show Δσ
-
 
     # Check for new failure planes
     println("--------------------")
@@ -670,6 +702,7 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
     @show ipd.σ
     @show σp
     @show V
+    @show εp
 
     println("--------------------")
     println("Check for new failure planes")
@@ -740,6 +773,7 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
 
 
     return Δσ
+    @show εp
 end
 
 
