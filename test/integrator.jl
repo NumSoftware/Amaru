@@ -9,18 +9,19 @@ nu = 0.2
 #Δε = [ 0.0000, 0.0000, -0.0033, 0, 0, 0 ]*-0.025
 #stress_update(int, Δε, nincs=20)
 
-Δε = [ 0.0000, 0.0000, -0.0033, 0, 0, 0 ]*0.50
-stress_update(int, Δε, nincs=10)
+Δε = [ 0.0000, 0.0000, -0.0033, 0, 0, 0 ]*0.70
+stress_update(int, Δε, nincs=30)
 
-Δε = [ 0.0000, 0.0000, -0.0033, 0, 0, 0 ]*-0.225
-stress_update(int, Δε, nincs=10)
+Δε = [ 0.0000, 0.0000, -0.0033, 0, 0, 0 ]*-0.350
+stress_update(int, Δε, nincs=30)
 
-Δε = [ 0.0000, 0.0000, -0.0033, 0, 0, 0 ]*0.90
-stress_update(int, Δε, nincs=10)
+Δε = [ 0.0000, 0.0000, -0.0033, 0, 0, 0 ]*0.60
+stress_update(int, Δε, nincs=30)
 
 using PyPlot
 t = int.table
+grid("on", linewidth=0.5, color="lightgray", linestyle="-")     # propriedades do grid
 plot(t[:ezz], t[:szz], "-o")
-
+tight_layout()                                                  # centrar a figura
 #@show t
 #;

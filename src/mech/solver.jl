@@ -217,6 +217,7 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
 
             # Try FE step
             verbose && print("    assembling... \r")
+            #K = mount_K(dom, ndofs)
             remountK && (K = mount_K(dom, ndofs))
 
             # Solve
