@@ -271,6 +271,7 @@ function calcD(mat::Orthotropic, ipd::OrthotropicIpState)
     E = mat.E0
     ν = mat.ν
 
+
     #f = loading_func(mat, σtr)
     #f = loading_func(mat, ipd.σ)
     #ipd.unloading = (f<ipd.fmax)
@@ -313,7 +314,7 @@ function calcD(mat::Orthotropic, ipd::OrthotropicIpState)
             if σp[3] >= κ*fcm # σc'  low compression
                 println("Baixa compressão ou tração")
                 println("D(isotrop)")
-                if σp[1]!=0 || σp[2]!=0 || σp[3]!=0 
+                if abs(σp[1]) + abs(σp[2]) + abs(σp[3]) != 0.0
                     Et = ( abs(σp[1])*Ep1 + abs(σp[2])*Ep2 + abs(σp[3])*Ep3 ) / (abs(σp[1]) + abs(σp[2]) + abs(σp[3]))
                 else
                     Et = mat.E0
@@ -342,8 +343,9 @@ function calcD(mat::Orthotropic, ipd::OrthotropicIpState)
 
     elseif ipd.crushed
         println("Crushed")
-        println("D=ηn")
-        D = eye(6)*mat.ηn
+        @show mat.ηn
+        D = calcDe(mat.ηn, mat.ν, ipd.shared_data.model_type)
+        #display(D)
         return D
     else # nactive_fails>0
         println("Tração")
@@ -438,6 +440,8 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
     σ0 = copy(ipd.σ)
     De = calcDe(mat.E0, mat.ν, ipd.shared_data.model_type)
     σtr = ipd.σ + De*Δε
+    @show σ0
+    @show Δε
 
     E = mat.E0
     ν = mat.ν
@@ -461,26 +465,38 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
     #@show ipd.active_fails
     #@show nactive_fails
 
+
+    σp, V = eigen(ipd.σ)
+    p  = sortperm(σp, rev=true)
+    σp = σp[p] # ordered stresses
+    V  = V[:,p]
+    R  = zeros(6,6)
+    tensor_rot!(V, R)
+    εp  = R*ipd.ε
+    Δεp = R*Δε
+
+
     if !ipd.crushed && nactive_fails==0 # no fails
         println("Não está crushed e não tem planos de falha")
-        σp, V = eigen(ipd.σ)
-        R  = zeros(6,6)
-        tensor_rot!(V, R)
-        εp = R*ipd.ε
 
-        if ipd.unloading
+        #if ipd.unloading
+        if Δεp[3] > 0.0 # unloading (different than the original paper)
             println("Descarregando")
             println("De")
             D = calcDe(mat.E0, mat.ν, ipd.shared_data.model_type)
+                    #Et = ( sigma(mat, εp[3]+Δεp[3]) - sigma(mat, εp[3]) ) / Δεp[3]
+                    #D  = calcDe(Et, mat.ν, ipd.shared_data.model_type)
+            #println("XXXXXXXXXXXXXXXXXXX")
+            #error()
         else
             println("Carregando")
-            p  = sortperm(σp, rev=true)
-            σp = σp[p] # ordered stresses
-            V  = V[:,p]
+            #p  = sortperm(σp, rev=true)
+            #σp = σp[p] # ordered stresses
+            #V  = V[:,p]
 
-            R = zeros(6,6)
-            tensor_rot!(V, R)
-            εp  = R*ipd.ε # strain associated with σp
+            #R = zeros(6,6)
+            #tensor_rot!(V, R)
+            #εp  = R*ipd.ε # strain associated with σp
 
             γ1  = gamma1(mat, σp[1], σp[2])
             fcm = γ1*mat.fc
@@ -493,7 +509,8 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
             if σp[3] >= κ*fcm # σc'  low compression
                 println("Baixa compressão ou tração")
                 println("D(isotrop)")
-                if σp[1]!=0 || σp[2]!=0 || σp[3]!=0 
+                #if σp[1]!=0 || σp[2]!=0 || σp[3]!=0 
+                if abs(σp[1]) + abs(σp[2]) + abs(σp[3]) != 0.0
                     Et = ( abs(σp[1])*Ep1 + abs(σp[2])*Ep2 + abs(σp[3])*Ep3 ) / (abs(σp[1]) + abs(σp[2]) + abs(σp[3]))
                 else
                     Et = mat.E0
@@ -532,7 +549,7 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
         Δσ = D*Δε
         #@show Δσ
         #@show εp[3]
-    elseif ipd.crushed && Δε[3] < 0.0 ###Material failed already in COMPRESSION###
+    elseif ipd.crushed && εp[3]+Δεp[3] < 0.0 ###Material failed already in COMPRESSION###
         println("Crushed")
         @show nfplanes
         #@show σp
@@ -569,6 +586,8 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
             if Δεp[3] > 0.0 # unloading (different than the original paper)
                 println("unloading")
                 D = calcDe(mat.E0, mat.ν, ipd.shared_data.model_type)
+                #error()
+                    @show 5000
             else
                 println("loading")
                 #@show f
@@ -590,14 +609,15 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
                                     0.0    0.0     0.0    0.0    0.0    (1-ν) ]
                     #D = calcDe(mat.E0, mat.ν, ipd.shared_data.model_type)
                     println("E(elastic)")
-                    #@show 1000
+                    @show 1000
                 else
                     Et = ( sigma(mat, εp[3]+Δεp[3]) - sigma(mat, εp[3]) ) / Δεp[3]
                     D  = calcDe(Et, mat.ν, ipd.shared_data.model_type)
-                    #@show 2000
+                    @show 2000
                 end
                 #D  = calcDe(Et, mat.ν, ipd.shared_data.model_type)
             end
+            error()
             Δσ = D*Δε
         end
 
@@ -735,6 +755,9 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
         if σp[i]>mat.ft # new fixed plane
             if nfplanes==0
                 println("agora tem 1 plano fixo")
+                @show ipd.σ
+                @show σp
+                #error()
                 plane = FixedPlane(V[:,i], true, true, εp[i])
                 push!(ipd.fplanes, plane)
             elseif nfplanes==1
@@ -787,16 +810,21 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
     # Check for compression crushing
     if ipd.crushed==false
         for i=1:3
-            if σp[i]<mat.fc
+            #if σp[i]<mat.fc
+            if εp[i]<mat.εc
                 ipd.crushed = true
+                println("Agora crushed")
+
+                #println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+                #error()
                 break
             end
         end
     end
 
 
+    @show ipd.σ
     return Δσ
-    #@show εp
 end
 
 
