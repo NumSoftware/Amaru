@@ -134,7 +134,7 @@ function calcD(mat::Mazars, ipd::MazarsIpState)
 end
 
 
-function stress_update(mat::Mazars, ipd::MazarsIpState, Δε::Array{Float64,1})
+function stress_update(mat::Mazars, ipd::MazarsIpState, Δε::Tensor2)
     σini  = ipd.σ
     ipd.ε = ipd.ε + Δε
 

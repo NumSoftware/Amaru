@@ -86,7 +86,7 @@ function calcD(mat::VonMises, ipd::VonMisesIpState)
     return De - inner(De,Nu) ⊗ inner(V,De) / (inner(V,De,Nu) + H)
 end
 
-function stress_update(mat::VonMises, ipd::VonMisesIpState, Δε::Array{Float64,1})
+function stress_update(mat::VonMises, ipd::VonMisesIpState, Δε::Tensor2)
     σini = ipd.σ
     De   = calcDe(mat.E, mat.ν, ipd.shared_data.model_type)
     σtr  = ipd.σ + inner(De, Δε)

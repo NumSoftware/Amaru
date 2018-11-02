@@ -252,9 +252,9 @@ function elem_update!(elem::MechSolid, U::Array{Float64,1}, F::Array{Float64,1},
         setB(elem.shared_data, dNdX, detJ, B)
 
         @gemv Δε = B*dU
-        Δσ   = stress_update(elem.mat, ip.data, Δε)
+        Δσ   = stress_update(elem.mat, ip.data, Tensor2(Δε))
         coef = detJ*ip.w*th
-        @gemv dF += coef*B'*Δσ
+        dF += coef*B'*Δσ
     end
 
     F[map] += dF

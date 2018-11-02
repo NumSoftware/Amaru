@@ -4,8 +4,10 @@ export ElasticSolid
 
 mutable struct ElasticSolidIpState<:IpState
     shared_data::SharedAnalysisData
-    σ::Array{Float64,1}
-    ε::Array{Float64,1}
+    #σ::Array{Float64,1}
+    #ε::Array{Float64,1}
+    σ::Tensor2
+    ε::Tensor2
     function ElasticSolidIpState(shared_data::SharedAnalysisData=SharedAnalysisData()) 
         this = new(shared_data)
         this.σ = zeros(6)
@@ -57,23 +59,23 @@ end
 function calcDe(E::Number, ν::Number, model_type::Symbol)
     if model_type==:plane_stress
         c = E/(1.0-ν^2)
-        return [
+        return Tensor4( [
             c    c*ν   0.0  0.0  0.0  0.0
             c*ν  c     0.0  0.0  0.0  0.0
             0.0  0.0   0.0  0.0  0.0  0.0
             0.0  0.0   0.0  0.0  0.0  0.0
             0.0  0.0   0.0  0.0  0.0  0.0 
-            0.0  0.0   0.0  0.0  0.0  c*(1.0-ν) ]
+            0.0  0.0   0.0  0.0  0.0  c*(1.0-ν) ] )
         # ezz = -ν/E*(sxx+syy)
     else
         c = E/((1.0+ν)*(1.0-2.0*ν))
-        return [
+        return Tensor4( [
             c*(1-ν) c*ν     c*ν     0.0         0.0         0.0
             c*ν     c*(1-ν) c*ν     0.0         0.0         0.0
             c*ν     c*ν     c*(1-ν) 0.0         0.0         0.0
             0.0     0.0     0.0     c*(1-2*ν)   0.0         0.0
             0.0     0.0     0.0     0.0         c*(1-2*ν)   0.0
-            0.0     0.0     0.0     0.0         0.0         c*(1-2*ν) ]
+            0.0     0.0     0.0     0.0         0.0         c*(1-2*ν) ] )
     end
 end
 
@@ -81,7 +83,7 @@ function calcD(mat::ElasticSolid, ipd::ElasticSolidIpState)
     return calcDe(mat.E, mat.nu, ipd.shared_data.model_type)
 end
 
-function stress_update(mat::ElasticSolid, ipd::ElasticSolidIpState, dε::Array{Float64,1})
+function stress_update(mat::ElasticSolid, ipd::ElasticSolidIpState, dε::Tensor2)
     De = calcDe(mat.E, mat.nu, ipd.shared_data.model_type)
     dσ = De*dε
     ipd.ε += dε

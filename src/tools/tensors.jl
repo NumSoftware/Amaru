@@ -5,16 +5,26 @@
 import DataStructures.OrderedDict
 export Tensor2, Tensor4
 
-const Tensor2 = Array{Float64,1}
-const Tensor4 = Array{Float64,2}
+#const Tensor2 = Array{Float64,1}
+#const Tensor4 = Array{Float64,2}
+
+const Tensor2 = SArray{Tuple{6},Float64,1,6}
+const Tensor4 = SArray{Tuple{6,6},Float64,2,36}
+
+Base.strides(::Tensor2) = (1,)
+Base.strides(::Tensor4) = (1,6)
+
+#function Base.zeros(::Type{Tensor2})
+    #return Tensor2(zeros(6))
+#end
 
 const V2M = [ 1., 1., 1., SR2, SR2, SR2 ]
 const M2V = [ 1., 1., 1., 1.0/SR2, 1.0/SR2, 1.0/SR2 ] # Use .* operator
 
-const tI  = [1., 1., 1., 0., 0., 0.]
-const Isym = eye(6)
+const tI  = @SVector [1., 1., 1., 0., 0., 0.]
+const Isym = @SMatrix eye(6)
 
-const Psd = [  
+const Psd = @SMatrix [  
     2/3. -1/3. -1/3. 0. 0. 0.
    -1/3.  2/3. -1/3. 0. 0. 0.
    -1/3. -1/3.  2/3. 0. 0. 0.
@@ -174,25 +184,26 @@ end
 
 ∷ = inner
 
-function tensor_rot!(V::Array{Float64,2}, T::Tensor4)
+function tensor_rot(V::Array{Float64,2})
     l1, m1, n1 = V[:,1]
     l2, m2, n2 = V[:,2]
     l3, m3, n3 = V[:,3]
 
-    T[1,1] =     l1*l1;  T[1,2] =     m1*m1;  T[1,3] =     n1*n1;   T[1,4] =   SR2*m1*n1;  T[1,5] =   SR2*n1*l1;  T[1,6] =   SR2*l1*m1;   
-    T[2,1] =     l2*l2;  T[2,2] =     m2*m2;  T[2,3] =     n2*n2;   T[2,4] =   SR2*m2*n2;  T[2,5] =   SR2*n2*l2;  T[2,6] =   SR2*l2*m2;   
-    T[3,1] =     l3*l3;  T[3,2] =     m3*m3;  T[3,3] =     n3*n3;   T[3,4] =   SR2*m3*n3;  T[3,5] =   SR2*n3*l3;  T[3,6] =   SR2*l3*m3;   
-    T[4,1] = SR2*l2*l3;  T[4,2] = SR2*m2*m3;  T[4,3] = SR2*n2*n3;   T[4,4] = m2*n3+m3*n2;  T[4,5] = l2*n3+l3*n2;  T[4,6] = l2*m3+l3*m2;   
-    T[5,1] = SR2*l3*l1;  T[5,2] = SR2*m3*m1;  T[5,3] = SR2*n3*n1;   T[5,4] = m3*n1+m1*n3;  T[5,5] = l3*n1+l1*n3;  T[5,6] = l3*m1+l1*m3; 
-    T[6,1] = SR2*l1*l2;  T[6,2] = SR2*m1*m2;  T[6,3] = SR2*n1*n2;   T[6,4] = m1*n2+m2*n1;  T[6,5] = l1*n2+l2*n1;  T[6,6] = l1*m2+l2*m1;   
-    return T
+    return Tensor4( [
+
+        l1*l1      m1*m1      n1*n1     SR2*m1*n1    SR2*n1*l1    SR2*l1*m1   
+        l2*l2      m2*m2      n2*n2     SR2*m2*n2    SR2*n2*l2    SR2*l2*m2   
+        l3*l3      m3*m3      n3*n3     SR2*m3*n3    SR2*n3*l3    SR2*l3*m3   
+    SR2*l2*l3  SR2*m2*m3  SR2*n2*n3   m2*n3+m3*n2  l2*n3+l3*n2  l2*m3+l3*m2   
+    SR2*l3*l1  SR2*m3*m1  SR2*n3*n1   m3*n1+m1*n3  l3*n1+l1*n3  l3*m1+l1*m3 
+    SR2*l1*l2  SR2*m1*m2  SR2*n1*n2   m1*n2+m2*n1  l1*n2+l2*n1  l1*m2+l2*m1   ])
 end
 
-function tensor_rot(V::Array{Float64,2})
-    T = zeros(6,6)
-    tensor_rot!(V, T)
-    return T
-end
+#function tensor_rot(V::Array{Float64,2})
+    #T = zeros(6,6)
+    #tensor_rot!(V, T)
+    #return T
+#end
 
 """
 Return a dictionary with conventional stress and stress values

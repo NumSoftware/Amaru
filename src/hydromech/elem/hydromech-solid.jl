@@ -325,7 +325,7 @@ function elem_update!(elem::HMSolid, DU::Array{Float64,1}, DF::Array{Float64,1},
 
         Δuw = N'*dUw # interpolation to the integ. point
 
-        Δσ, V = stress_update(elem.mat, ip.data, Δε, Δuw, G)
+        Δσ, V = stress_update(elem.mat, ip.data, Tensor2(Δε), Δuw, G)
         Δσ -= Δuw*m # get total stress
 
         coef = detJ*ip.w

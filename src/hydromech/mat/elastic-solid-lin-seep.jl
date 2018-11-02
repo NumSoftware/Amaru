@@ -4,8 +4,8 @@ export ElasticSolidLinSeep
 
 mutable struct ElasticSolidLinSeepIpState<:IpState
     shared_data::SharedAnalysisData
-    σ::Array{Float64,1}
-    ε::Array{Float64,1}
+    σ::Tensor2
+    ε::Tensor2
     V::Array{Float64,1}
     uw::Float64
     function ElasticSolidLinSeepIpState(shared_data::SharedAnalysisData=SharedAnalysisData()) 
@@ -73,7 +73,7 @@ function calcK(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepIpState) # Hydr
     end
 end
 
-function stress_update(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepIpState, Δε::Array{Float64,1}, Δuw::Float64, G::Array{Float64,1})
+function stress_update(mat::ElasticSolidLinSeep, ipd::ElasticSolidLinSeepIpState, Δε::Tensor2, Δuw::Float64, G::Array{Float64,1})
     De = calcD(mat, ipd)
     Δσ = De*Δε
     ipd.ε  += Δε

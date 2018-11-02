@@ -3,6 +3,7 @@ julia 0.7
 Printf
 LinearAlgebra
 SparseArrays
+StaticArrays
 Test
 DelimitedFiles
 

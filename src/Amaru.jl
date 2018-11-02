@@ -17,8 +17,8 @@ set_mat, set_bc, clear_bc, solve!, save
 
 """
 module Amaru
-using Printf, Statistics, LinearAlgebra, SparseArrays, DelimitedFiles
-using JSON, DataStructures, Reexport
+using Statistics, LinearAlgebra, SparseArrays, StaticArrays
+using Printf, JSON, DataStructures, Reexport, DelimitedFiles
 import DataStructures.OrderedDict, DataStructures.OrderedSet
 
 #Using non-registered (jet) package FemMesh
