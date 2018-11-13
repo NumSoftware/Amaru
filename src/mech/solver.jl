@@ -327,6 +327,9 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
                 dt = T-t
             end
         else
+            # Restore the state to last converged increment
+            for ip in ips; ip.data = deepcopy(ip.data0) end
+
             if autoinc
                 verbose && println("    increment failed.")
                 dt *= 0.5
