@@ -126,7 +126,7 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
     if save_incs
         if nouts>nincs
             nincs = nouts
-            info("  nincs changed to $nincs to match nouts")
+            @info "  nincs changed to $nincs to match nouts"
         end
         if nincs%nouts != 0
             nincs = nincs - (nincs%nouts) + nouts
@@ -217,8 +217,8 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
 
             # Try FE step
             verbose && print("    assembling... \r")
-            #K = mount_K(dom, ndofs)
-            remountK && (K = mount_K(dom, ndofs))
+            K = mount_K(dom, ndofs)
+            #remountK && (K = mount_K(dom, ndofs))
 
             # Solve
             verbose && print("    solving...   \r")
@@ -327,9 +327,13 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
                 dt = T-t
             end
         else
+<<<<<<< HEAD
             # Restore the state to last converged increment
             for ip in ips; ip.data = deepcopy(ip.data0) end
 
+=======
+            for ip in ips; ip.data = deepcopy(ip.data0) end
+>>>>>>> 3aae13718e071f769f07111498308ad2ac84ee89
             if autoinc
                 verbose && println("    increment failed.")
                 dt *= 0.5
