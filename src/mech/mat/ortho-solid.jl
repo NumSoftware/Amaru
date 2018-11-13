@@ -173,12 +173,12 @@ function gamma1(mat::Orthotropic, σp1::Float64, σp2::Float64)
 end
 
 function eigen_with_fixed_dir(σ::Tensor2, X::Array{Float64,1})
-    # Finds two eigenvectors normal do X. Vector X is returned as the first direction
+    # Finds two eigenvectors normal to X. Vector X is returned as the first direction
     #
     # σ: Stress tensor
     # X: Fixed direction
 
-    # find an arbitrary system aligned with Z
+    # find an arbitrary system aligned with X
     Q = [1., 0 , 0] # auxiliary vector
     if X==Q
         Q = [0., 1, 0 ]
@@ -186,6 +186,7 @@ function eigen_with_fixed_dir(σ::Tensor2, X::Array{Float64,1})
     Y = normalize(cross(X, Q))
     Z = normalize(cross(X, Y))
     W = [X Y Z] # arbitrary system
+    #@show W
 
     # fourth order rotation tensor
     R = zeros(6,6)
@@ -194,12 +195,15 @@ function eigen_with_fixed_dir(σ::Tensor2, X::Array{Float64,1})
     # new temporary tensor
     σt = R*σ
     σx = σt[1] # first "eigenvalue"
+    #@show σt
 
-    lt, Vt = eigen( [ σt[2] σt[4]; σt[4] σ[3] ]  )
+    lt, Vt = eigen( [ σt[2] σt[4]; σt[4] σt[3] ]  )
 
     # 2D to 3D
     Dt = eye(3)
     Dt[2:3,2:3] .= Vt # new matrix with orthogonal directions
+    Dt[:,1] .= cross(Dt[:,2], Dt[:,3])
+    #@show Dt[:,1]
 
     # new tensor
     V = W*Dt  # new directions in the xyz system
@@ -439,6 +443,9 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
     σ0 = copy(ipd.σ)
     De = calcDe(mat.E0, mat.ν, ipd.shared_data.model_type)
     σtr = ipd.σ + De*Δε
+
+    @show Δε
+    @show σ0
 
     E = mat.E0
     ν = mat.ν
