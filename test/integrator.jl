@@ -7,6 +7,13 @@ int = MechIntegrator(mat)
 nu = 0.2
 euu= -0.0033
 
+Δε = [ 0, 0, 0, euu, 0, 0 ]*0.85
+stress_update(int, Δε, nincs=100)
+
+#=
+Δε = [ euu*nu, euu*nu, euu*nu, euu, 0, 0 ]*0.85
+stress_update(int, Δε, nincs=100)
+
 Δε = [ euu*nu, euu*nu, euu, 0, 0, 0 ]*0.85
 stress_update(int, Δε, nincs=100)
 
@@ -15,10 +22,11 @@ stress_update(int, Δε, nincs=100)
 
 Δε = [ euu*nu, euu*nu, euu, 0, 0, 0 ]*0.55
 stress_update(int, Δε, nincs=100)
+=#
 
 using PyPlot
 t = int.table
 grid("on", linewidth=0.5, color="lightgray", linestyle="-")     # propriedades do grid
-plot(t[:ezz], t[:szz], "-o")
+plot(t[:exy], t[:sxy], "-o")
 tight_layout()                                                  # centrar a figura
 
