@@ -188,6 +188,7 @@ function eigen_with_fixed_dir(σ::Tensor2, X::Array{Float64,1})
     Dt = eye(3)
     Dt[2:3,2:3] .= Vt # new matrix with orthogonal directions
     Dt[:,3] .= cross(Dt[:,1], Dt[:,2])
+    #@show Dt[:,1]
 
     # new tensor
     V = W*Dt  # new directions in the xyz system
