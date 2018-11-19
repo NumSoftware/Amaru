@@ -130,7 +130,7 @@ function solve!(dom::Domain, bcs::Array; nincs=1::Int, maxits::Int=5, autoinc::B
         end
         if nincs%nouts != 0
             nincs = nincs - (nincs%nouts) + nouts
-            info("  nincs changed to $nincs to be a multiple of nouts")
+            @info "  nincs changed to $nincs to be a multiple of nouts"
         end
 
         strip(outdir) == "" && (outdir = ".")

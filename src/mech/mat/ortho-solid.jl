@@ -223,7 +223,13 @@ function find_dir(V, Vi)
     norm( V[:,1] - Vi) < tol && return 1
     norm( V[:,2] - Vi) < tol && return 2
     norm( V[:,3] - Vi) < tol && return 3
-error("Plano não encontrado")
+
+    norm( V[:,1] + Vi) < tol && return 1
+    norm( V[:,2] + Vi) < tol && return 2
+    norm( V[:,3] + Vi) < tol && return 3
+    #display(V)
+    #@show Vi
+    error("Plano não encontrado")
 end
 
 function principal_isotropic_moduli(mat::Orthotropic, εp::Array{Float64,1}, γ1::Float64)
@@ -340,6 +346,8 @@ function calcD(mat::Orthotropic, ipd::OrthotropicIpState)
             σp, V = eigen_with_fixed_dir(ipd.σ, ipd.fplanes[1].V) # V1 should be the first column of V
         else # nfplanes == 3
             #println("Planos de falha definido = 2 ou 3")
+            #@show ipd.fplanes
+            #@show length(ipd.fplanes)
             V = [ ipd.fplanes[1].V ipd.fplanes[2].V ipd.fplanes[3].V ]
             R = zeros(6,6)
             tensor_rot!(V, R)
@@ -408,6 +416,17 @@ function calcD(mat::Orthotropic, ipd::OrthotropicIpState)
         return D
     end
 end
+
+#function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Float64,1})
+    #nincs = 10
+    #dε = Δε/nincs
+    #Δσ = zeros(6)
+#
+    #for k=1:nincs
+        #Δσ .+= stress_update0(mat, ipd, dε)
+    #end
+    #return Δσ
+#end
 
 function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Float64,1})
     #println("------------------------------------------")
@@ -657,28 +676,29 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
 
     #println("--------------------")
     #println("Check for new failure planes")
-    nfplanes = length(ipd.fplanes)
     for i=1:3
         if σp[i]>mat.ft # new fixed plane
+            nfplanes = length(ipd.fplanes)
             if nfplanes==0
                 #println("agora tem 1 plano fixo")
                 plane = FixedPlane(V[:,i], true, true, εp[i])
                 push!(ipd.fplanes, plane)
             elseif nfplanes==1
                 if norm(V[:,i] - ipd.fplanes[1].V)<0.001 # V[:,i] == V1 plano já existe
+                    #ipd.fplanes[1].failed = true
                     continue
                 else
                     #println("agora tem 2 plano fixo")
                     plane = FixedPlane(V[:,i], true, true, εp[i])
                     push!(ipd.fplanes, plane)
-                end
-            elseif nfplanes==2
-                if norm(V[:,i] - ipd.fplanes[1].V)<0.001 && norm(V[:,i] - ipd.fplanes[2].V)<0.001 
-                    continue
-                else
-                    #println("agora tem 3 plano fixo")
-                    plane = FixedPlane(V[:,i], true, true, εp[i])
+                    V3 = cross(ipd.fplanes[1].V, ipd.fplanes[2].V)
+                    plane = FixedPlane(V3, false, true, 0.0)
                     push!(ipd.fplanes, plane)
+                end
+            elseif nfplanes==3
+                if ipd.fplanes[i].failed == false
+                    ipd.fplanes[i].failed = true
+                    ipd.fplanes[i].εf = εp[i]
                 end
             end
         end
@@ -691,10 +711,15 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
     if nfplanes>0
         for i=1:nfplanes
             plane = ipd.fplanes[i]
+            plane.failed || continue
             dir = find_dir(V, plane.V)
             if εp[dir]>=plane.εf 
                 plane.active = true
-                σp[dir] = 0.0
+                #println("stress release - tension")
+                #@show σp[dir]
+                if σp[dir]>0
+                    σp[dir] = 0.0
+                end
             else
                 plane.active = false
             end
@@ -713,7 +738,6 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
             end
         end
     end
-
 
     return Δσ
 end
