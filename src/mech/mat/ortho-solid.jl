@@ -354,7 +354,7 @@ function calcD(mat::Orthotropic, ipd::OrthotropicIpState)
             σp = σp[1:3]
         end
 
-        # sort principal stresses
+        #sort principal stresses
         p  = sortperm(σp, rev=true)
         σp = σp[p] # ordered stresses
         V  = V[:,p]
@@ -719,6 +719,7 @@ function stress_update(mat::Orthotropic, ipd::OrthotropicIpState, Δε::Array{Fl
                 plane.active = true
                 println("stress release - tension")
 #                @show σp[dir]
+#                @show σp
                 if σp[dir]>0
                     σp[dir] = 0.0
                 end
